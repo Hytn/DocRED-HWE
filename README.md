@@ -1,4 +1,5 @@
 # DocRED_HWE
+
 Source code for ACL 2023 paper: Did the Models Understand Documents? Benchmarking Models for Language Understanding in Document-Level Relation Extraction
 
 > Document-level relation extraction (DocRE) attracts more research interest recently. While
@@ -19,7 +20,7 @@ Source code for ACL 2023 paper: Did the Models Understand Documents? Benchmarkin
 > the extensive experimental results, we finally
 > appeal to future work to consider evaluating
 > both performance and the understanding ability
-> of models for the development of their applications. 
+> of models for the development of their applications.
 
 ## Dataset
 
@@ -37,22 +38,54 @@ Statistics of the 699 documents (the same as DocRED_HWE's) from the original val
 
 ## Codes
 
-`build_attack_dataset.ipynb`: Performing keyword attack and entity attack on DocRED_HWE.json and docred_dev.json respectively. 
+- `MAP_metric.ipynb`: Evaluating with MAP metric
+- `plot.ipynb`: Ploting MAP curves and TopK-F1 curves.
+- `eval_attack_docunet.ipynb`: Evaluating DocuNet's performance under two attacks.
+- `MAP_metric.py`: evaluate model with MAP (mean average precision)
+- `IG_inference.py`: Calculating integrated gradient (IG) to attribute ATLOP.
+- `get_ds.py`: Generate dataset for evalution.
+- `run_attacks.py`: All attacks on ATLOP.
 
-`MAP_metric.ipynb`: Evaluating with MAP metric
+## Dependencies
+#### Using pip
+```shell
+pip install -r requirements.pip.txt
+```
+#### Using conda
+```shell
+conda install --file requirements.conda.txt
+```
 
-`plot.ipynb`: Ploting MAP curves and TopK-F1 curves.
+## Preparation
 
-`eval_attack_docunet.ipynb`: Evaluating DocuNet's performance under two attacks.
+**Step1**. Prepare original ATLOP trained model, saved to `saved_dict/`, name it `saved_dict/model_bert.ckpt` or `saved_dict/model_roberta.ckpt`
 
-`eval_attack_atlop.ipynb`: Evaluating ATLOP's performance under two attacks.
+**Step2**. Use IG to generate the weights of every token for specific relation fact
+```shell
+python IG_inference.py --infer_method INFER_METHOD --load_path LOAD_PATH --model_name_or_path MODEL_NAME_OR_PATH --transformer_type TRANSFORMER_TYPE
+```
+- `INFER_METHOD` is the attribution method, use `ig_infer` or `grad_infer`, `LOAD_PATH` is your saved model checkpoint, `MODEL_NAME_OR_PATH` and `TRANSFORMER_TYPE` is BERT's parameter, you can set to `roberta-large` and `roberta`, respectively. 
+- result of IG will be saved to `dataset/ig_pkl` folder
 
-`run_attacks.py`: All attacks on ATLOP.
+**Step3**. Generate ENP_TOPK dataset(entity pair with topk attributed tokens), and entity name attack dataset (three types mentioned in paper)
+```shell
+python getds.py --model_type MODEL_TYPE
+```
+- `MODEL_TYPE` is your saved model type, should be `roberta-large` or `bert-base-cased`
+- ENP_TOPK dataset and entity name attack dataset will be stored in `dataset/docred/enp_topk/` and `dataset/attack_pkl/` folder, respectively
 
-`IG_inference.py`: Calculating integrated gradient (IG) to attribute ATLOP.
+## Run Evaluation
+### Run MAP evaluation
+```shell
+python MAP_metric.py --model_type MODEL_TYPE
+```
+- use IG result to generate the new MAP evaluation, output will be saved to `dataset/keyword_pkl/`, which you can draw the line chart like in `plot.ipynb`
 
-
-
+### Run word-level evidence attack and entity name attack on the generated dataset
+```shell
+python run_attack.py --model_type MODEL_TYPE
+```
+- run the word-level evidence attack and entity name attack, output will be printed in STDOUT
 ## License
 
 MIT

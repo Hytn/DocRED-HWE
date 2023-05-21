@@ -6,8 +6,7 @@ from apex import amp
 from torch.utils.data.dataloader import DataLoader
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 from model import DocREModel_infer
-from utils import collate_fn
-from prepro import read_docred
+from utils import collate_fn, read_docred
 from tqdm import tqdm
 from torch.autograd import grad
 
@@ -27,8 +26,8 @@ def ig_infer(model, infer_features, args):
     steps = ig_config["appr_steps"]
     k = ig_config["topk"]  # top-k prob labels
     start_i = ig_config["start_p"]
-    
-    start_i = 1
+
+    start_i = 1  #TODO: debug
     print("start p = ", start_i)
     # skip start samples
     si = 0
@@ -47,7 +46,6 @@ def ig_infer(model, infer_features, args):
         inputs = {
             "input_embs": input_embs.to(args.device),
             "attention_mask": sample[1].to(args.device),
-            "labels": sample[2],
             "entity_pos": sample[3],
             "hts": sample[4],
         }
@@ -63,13 +61,12 @@ def ig_infer(model, infer_features, args):
 
         rel_num = topk_logits.shape[0]  # relation pair num
 
-        # shape = rel_num * k * scale_num * seq_len * hidden_size
-        rel_ig = torch.zeros(rel_num, k, delta_input.shape[0], delta_input.shape[1]).to(args.device)
+        # rel_ig = torch.zeros(rel_num, k, delta_input.shape[0], delta_input.shape[1]).to(args.device)
+        rel_ig = torch.zeros(rel_num, k, delta_input.shape[0]).to(args.device)
         for inp_embs in scale_input_embs:
             inputs = {
                 "input_embs": inp_embs.to(args.device),
                 "attention_mask": sample[1].to(args.device),
-                "labels": sample[2],
                 "entity_pos": sample[3],
                 "hts": sample[4],
             }
@@ -80,10 +77,14 @@ def ig_infer(model, infer_features, args):
                     label_logit = logits[rel_i, topk_indices[rel_i, k_i]]
                     # parallel computing of grad()
                     gradient = grad(outputs=label_logit, inputs=inp_embs, retain_graph=True)[0].squeeze(0)
-                    rel_ig[rel_i, k_i] += gradient
-        rel_ig = rel_ig * delta_input / steps
-        rel_ig = rel_ig.sum(-1)
-        rel_ig = rel_ig.detach().cpu().numpy()
+                    rel_ig[rel_i, k_i] += (gradient * delta_input / steps).sum(-1)
+            # release CUDA memory
+            del logits, gradient
+            torch.cuda.empty_cache()
+        with torch.no_grad():
+            # rel_ig = rel_ig * delta_input / steps
+            # rel_ig = rel_ig.sum(-1)
+            rel_ig = rel_ig.detach().cpu().numpy()
         topk_indices = topk_indices.detach().cpu().numpy()  # skip threshold class
         ig_pairs.append((rel_ig, topk_indices))  # store in pair list
         file_path = os.path.join(args.ig_dir, infer_name + "_ig_" + str(si) + "atlop.pkl")
@@ -160,7 +161,6 @@ def ig_infer_bp(model, infer_features, args):
         rel_ig = rel_ig * delta_input / steps
         rel_ig = rel_ig.sum(-1)
         rel_ig = rel_ig.detach().cpu().numpy()
-        # print('end one sample time = ', time.time() - stime, ' sec')
         topk_indices = topk_indices.detach().cpu().numpy()  # skip threshold class
         ig_pairs.append((rel_ig, topk_indices))  # store in pair list
         file_path = os.path.join(args.ig_dir, infer_name + "_ig_" + str(si) + "atlop.pkl")
@@ -246,7 +246,7 @@ def main():
     parser.add_argument("--data_dir", default="./dataset/docred", type=str)
     parser.add_argument("--transformer_type", default="roberta", type=str)
     parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
-    parser.add_argument("--ig_dir", default="ig_pkl", type=str)
+    parser.add_argument("--ig_dir", default="dataset/ig_pkl", type=str)
     parser.add_argument("--start_p", default=0, type=int, help="starting sample index in inference")
     parser.add_argument("--prod", action="store_true", help="for debug")  # production env
     parser.add_argument("--infer_file", default="dev_keys_new.json", type=str)
@@ -303,6 +303,8 @@ def main():
     model.to(0)
     model = amp.initialize(model, opt_level="O1", verbosity=0)
     model.load_state_dict(torch.load(args.load_path, map_location=device))
+
+    model = torch.nn.DataParallel(model, device_ids=[0, 1])  # error 
     print("load saved model from {}.".format(args.load_path))
 
     infer_methods = {

@@ -5,8 +5,13 @@ from collections import defaultdict
 from itertools import groupby
 import pickle
 from nltk.corpus import wordnet as wn
+import argparse
+import torch
+from apex import amp
+from transformers import AutoConfig, AutoModel, AutoTokenizer
+from model import DocREModel
 from evaluation import evaluate, report
-from prepro import read_docred
+from utils import read_docred
 
 
 MAX_SEQ_LENGTH = 1024
@@ -15,9 +20,108 @@ rel2id_path = "dataset/meta/rel2id.json"
 docred_rel2id = rel2id = json.load(open(rel2id_path))
 id2rel = {v: k for k, v in rel2id.items()}
 
+def arg_pre_atlop():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", default="./dataset/docred", type=str)
+    parser.add_argument("--transformer_type", default="roberta", type=str)
+    parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
 
-def enp_topk(args, model, model_type, tokenizer, ig_pkl_path, file_in="dataset/docred/dev_keys_new.json", limit=False):
-    with open(ig_pkl_path, "rb") as dig:
+    parser.add_argument("--train_file", default="train_annotated.json", type=str)
+    parser.add_argument("--dev_file", default="dev.json", type=str)
+    parser.add_argument("--test_file", default="test.json", type=str)
+    parser.add_argument("--load_path", default="saved_dict/model_roberta.ckpt", type=str)
+    parser.add_argument(
+        "--max_seq_length",
+        default=1024,
+        type=int,
+        help="The maximum total input sequence length after tokenization. Sequences longer "
+        "than this will be truncated, sequences shorter will be padded.",
+    )
+
+    parser.add_argument("--test_batch_size", default=8, type=int, help="Batch size for testing.")
+    parser.add_argument("--num_labels", default=4, type=int, help="Max number of labels in prediction.")
+
+    parser.add_argument(
+        "--num_train_epochs", default=30.0, type=float, help="Total number of training epochs to perform."
+    )
+    parser.add_argument("--seed", type=int, default=66, help="random seed for initialization")
+    parser.add_argument("--num_class", type=int, default=97, help="Number of relation types in dataset.")
+
+    args = parser.parse_args(args=[])
+    return args
+
+
+def get_atlop_model(model_type):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    args = arg_pre_atlop()
+    args.n_gpu = torch.cuda.device_count()
+    args.device = device
+    args.model_name_or_path = model_type
+    if model_type.startswith("r"):
+        args.transformer_type = "roberta"
+        args.load_path = "saved_dict/model_roberta.ckpt"
+    else:
+        args.transformer_type = "bert"
+        args.load_path = "saved_dict/model_bert.ckpt"
+
+    BERT_DIR = ""  #  local m path
+    model_name_or_path = BERT_DIR + args.model_name_or_path
+    config = AutoConfig.from_pretrained(
+        model_name_or_path,
+        num_labels=args.num_class,
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name_or_path,
+    )
+
+    model = AutoModel.from_pretrained(
+        model_name_or_path,
+        from_tf=bool(".ckpt" in args.model_name_or_path),
+        config=config,
+    )
+
+    config.cls_token_id = tokenizer.cls_token_id
+    config.sep_token_id = tokenizer.sep_token_id
+    config.transformer_type = args.transformer_type
+    model = DocREModel(config, model, num_labels=args.num_labels)
+    model.to(0)
+    model = amp.initialize(model, opt_level="O1", verbosity=0)
+
+    model.load_state_dict(torch.load(args.load_path, map_location=device))
+    print("load model from ", args.load_path)
+
+    return args, model
+
+
+def arg_pre_docunet():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", default="./dataset/docred", type=str)
+    parser.add_argument("--transformer_type", default="roberta", type=str)
+    parser.add_argument("--model_name_or_path", default="roberta-large", type=str)
+    parser.add_argument("--load_path", default="checkpoint/docred/roberta.pt", type=str)
+    parser.add_argument(
+        "--max_seq_length",
+        default=1024,
+        type=int,
+        help="The maximum total input sequence length after tokenization. Sequences longer "
+        "than this will be truncated, sequences shorter will be padded.",
+    )
+    parser.add_argument("--test_batch_size", default=8, type=int, help="Batch size for testing.")
+    parser.add_argument("--num_class", type=int, default=97, help="Number of relation types in dataset.")
+    parser.add_argument("--num_labels", default=4, type=int, help="Max number of labels in prediction.")
+    parser.add_argument("--unet_in_dim", type=int, default=3, help="unet_in_dim.")
+    parser.add_argument("--unet_out_dim", type=int, default=256, help="unet_out_dim.")
+    parser.add_argument("--down_dim", type=int, default=256, help="down_dim.")
+    parser.add_argument("--channel_type", type=str, default="context-based", help="unet_out_dim.")
+    parser.add_argument("--max_height", type=int, default=42, help="log.")
+    parser.add_argument("--dataset", type=str, default="docred", help="dataset type")
+
+    args = parser.parse_args(args=[])
+    return args
+
+
+def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="dataset/docred/dev_keys_new.json", limit=False):
+    with open(dataset/ig_pkl_path, "rb") as dig:
         dev_keys_ig = pickle.load(dig)
     print(len(dev_keys_ig))
     # for enp_topk in trange(1,101):
@@ -36,7 +140,7 @@ def enp_topk(args, model, model_type, tokenizer, ig_pkl_path, file_in="dataset/d
             data = data[:10]
         # enp_topk = 100
         dev_key_enp_json = []
-        #     for si, sample in enumerate(tqdm(data, desc="Example")):
+        # for si, sample in enumerate(tqdm(data, desc="Example")):
         for si, sample in enumerate(data):
             sents = []
             sent_map = []
@@ -388,10 +492,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
         # 3)entity replacement (using ood entity name)
         en_repl_sents = []
         repl_index_now = 0
-        # TODO: shuffle or with fixed order ?
         repl_mentions = []
         for m in all_mentions:
-            en_repl_sents.extend(sents[repl_index_now : m[0]])
+            en_repl_sents.extend(sents[repl_index_now: m[0]])
             new_en = repl_ens[m[2] * 10]  # fetch every 10 entities
             en_wordpiece = tokenizer.tokenize(new_en)
             new_en = (
@@ -421,7 +524,7 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
         en_repl_features.append(en_repl_feature)
         i_line += 1
 
-    attack_dir = "attack_pkl/"
+    attack_dir = "dataset/attack_pkl/"
     pickle.dump(ori_features, open(attack_dir + model_type + "@ori_dev.pkl", "wb"))
     pickle.dump(en_mask_features, open(attack_dir + model_type + "@en_mask_dev.pkl", "wb"))
     pickle.dump(en_shuf_features, open(attack_dir + model_type + "@en_shuf_dev.pkl", "wb"))
@@ -432,7 +535,7 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
 
 
 def entity_attack(args, model, model_type, tokenizer, file_in="dataset/docred/dev_wo_overlap.json"):
-    attack_dir = "attack_pkl/"
+    attack_dir = "dataset/attack_pkl/"
     # json.dump(ori_features, open(attack_dir + model_type + '@ori_keyword_dev.pkl', 'wb'))
     tag = file_in.split("/")[-1].split(".")[0]
 
