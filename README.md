@@ -11,7 +11,7 @@ Source code for ACL 2023 paper: Did the Models Understand Documents? Benchmarkin
 
 ## Dataset
 
-`DocRED_HWE.json`: DocRED with Human-annotated Word-level Evidence(HWE) dataset.
+`dataset/docred/dev_keys_new.json`: DocRED with Human-annotated Word-level Evidence(HWE) dataset.
 
 Statistics of the 699 documents (the same as DocRED_HWE's) from the original validation dataset of DocRED:
 
