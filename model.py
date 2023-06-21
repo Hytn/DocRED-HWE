@@ -14,7 +14,6 @@ class DocREModel(nn.Module):
         self.head_extractor = nn.Linear(2 * config.hidden_size, emb_size)
         self.tail_extractor = nn.Linear(2 * config.hidden_size, emb_size)
         self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
-        self.bilinear_o = nn.Bilinear(block_size, block_size, config.num_labels)
         self.emb_size = emb_size
         self.block_size = block_size
         self.num_labels = num_labels
@@ -28,7 +27,9 @@ class DocREModel(nn.Module):
         elif config.transformer_type == "roberta":
             start_tokens = [config.cls_token_id]
             end_tokens = [config.sep_token_id, config.sep_token_id]
-        sequence_output, attention = process_long_input(self.model, input_ids, attention_mask, start_tokens, end_tokens)
+        sequence_output, attention = process_long_input(
+            self.model, input_ids, attention_mask, start_tokens, end_tokens
+        )
         return sequence_output, attention
 
     def get_hrt(self, sequence_output, attention, entity_pos, hts):
@@ -82,9 +83,15 @@ class DocREModel(nn.Module):
         return hss, rss, tss
 
     def forward(
-        self, input_ids=None, attention_mask=None, labels=None, entity_pos=None, hts=None, instance_mask=None, **kwargs
+        self,
+        input_ids=None,
+        attention_mask=None,
+        labels=None,
+        entity_pos=None,
+        hts=None,
+        instance_mask=None,
+        **kwargs
     ):
-
         sequence_output, attention = self.encode(input_ids, attention_mask)
         hs, rs, ts = self.get_hrt(sequence_output, attention, entity_pos, hts)
 
@@ -92,7 +99,9 @@ class DocREModel(nn.Module):
         ts = torch.tanh(self.tail_extractor(torch.cat([ts, rs], dim=1)))
         b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size)
         b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size)
-        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size)
+        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(
+            -1, self.emb_size * self.block_size
+        )
         logits = self.bilinear(bl)
 
         output = (self.loss_fnt.get_label(logits, num_labels=self.num_labels),)
@@ -120,9 +129,15 @@ class DocREModel_infer(DocREModel):
         return sequence_output, attention
 
     def forward(
-        self, input_embs=None, attention_mask=None, labels=None, entity_pos=None, hts=None, instance_mask=None, **kwargs
+        self,
+        input_embs=None,
+        attention_mask=None,
+        labels=None,
+        entity_pos=None,
+        hts=None,
+        instance_mask=None,
+        **kwargs
     ):
-
         sequence_output, attention = self.encode(input_embs, attention_mask)
         hs, rs, ts = self.get_hrt(sequence_output, attention, entity_pos, hts)
 
@@ -130,6 +145,8 @@ class DocREModel_infer(DocREModel):
         ts = torch.tanh(self.tail_extractor(torch.cat([ts, rs], dim=1)))
         b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size)
         b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size)
-        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size)
+        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(
+            -1, self.emb_size * self.block_size
+        )
         logits = self.bilinear(bl)
         return logits
