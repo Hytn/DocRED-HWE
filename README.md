@@ -1,6 +1,6 @@
 # DocRED-HWE
 
-Source code for ACL 2023 paper: Did the Models Understand Documents? Benchmarking Models for Language Understanding in Document-Level Relation Extraction
+Source code for ACL 2023 paper: Did the Models Understand Documents? Benchmarking Models for Language Understanding in Document-Level Relation Extraction. [arxiv](https://arxiv.org/abs/2306.11386)
 
 > Document-level relation extraction (DocRE) attracts more research interest recently. While models achieve consistent performance gains in DocRE, their underlying decision rules are still understudied: Do they make the right predictions according to rationales?
 >
