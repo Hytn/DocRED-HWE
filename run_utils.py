@@ -20,6 +20,7 @@ rel2id_path = "dataset/meta/rel2id.json"
 docred_rel2id = rel2id = json.load(open(rel2id_path))
 id2rel = {v: k for k, v in rel2id.items()}
 
+
 def arg_pre_atlop():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", default="./dataset/docred", type=str)
@@ -29,7 +30,9 @@ def arg_pre_atlop():
     parser.add_argument("--train_file", default="train_annotated.json", type=str)
     parser.add_argument("--dev_file", default="dev.json", type=str)
     parser.add_argument("--test_file", default="test.json", type=str)
-    parser.add_argument("--load_path", default="saved_dict/model_roberta.ckpt", type=str)
+    parser.add_argument(
+        "--load_path", default="saved_dict/model_roberta.ckpt", type=str
+    )
     parser.add_argument(
         "--max_seq_length",
         default=1024,
@@ -38,14 +41,25 @@ def arg_pre_atlop():
         "than this will be truncated, sequences shorter will be padded.",
     )
 
-    parser.add_argument("--test_batch_size", default=8, type=int, help="Batch size for testing.")
-    parser.add_argument("--num_labels", default=4, type=int, help="Max number of labels in prediction.")
+    parser.add_argument(
+        "--test_batch_size", default=8, type=int, help="Batch size for testing."
+    )
+    parser.add_argument(
+        "--num_labels", default=4, type=int, help="Max number of labels in prediction."
+    )
 
     parser.add_argument(
-        "--num_train_epochs", default=30.0, type=float, help="Total number of training epochs to perform."
+        "--num_train_epochs",
+        default=30.0,
+        type=float,
+        help="Total number of training epochs to perform.",
     )
-    parser.add_argument("--seed", type=int, default=66, help="random seed for initialization")
-    parser.add_argument("--num_class", type=int, default=97, help="Number of relation types in dataset.")
+    parser.add_argument(
+        "--seed", type=int, default=66, help="random seed for initialization"
+    )
+    parser.add_argument(
+        "--num_class", type=int, default=97, help="Number of relation types in dataset."
+    )
 
     args = parser.parse_args(args=[])
     return args
@@ -106,13 +120,21 @@ def arg_pre_docunet():
         help="The maximum total input sequence length after tokenization. Sequences longer "
         "than this will be truncated, sequences shorter will be padded.",
     )
-    parser.add_argument("--test_batch_size", default=8, type=int, help="Batch size for testing.")
-    parser.add_argument("--num_class", type=int, default=97, help="Number of relation types in dataset.")
-    parser.add_argument("--num_labels", default=4, type=int, help="Max number of labels in prediction.")
+    parser.add_argument(
+        "--test_batch_size", default=8, type=int, help="Batch size for testing."
+    )
+    parser.add_argument(
+        "--num_class", type=int, default=97, help="Number of relation types in dataset."
+    )
+    parser.add_argument(
+        "--num_labels", default=4, type=int, help="Max number of labels in prediction."
+    )
     parser.add_argument("--unet_in_dim", type=int, default=3, help="unet_in_dim.")
     parser.add_argument("--unet_out_dim", type=int, default=256, help="unet_out_dim.")
     parser.add_argument("--down_dim", type=int, default=256, help="down_dim.")
-    parser.add_argument("--channel_type", type=str, default="context-based", help="unet_out_dim.")
+    parser.add_argument(
+        "--channel_type", type=str, default="context-based", help="unet_out_dim."
+    )
     parser.add_argument("--max_height", type=int, default=42, help="log.")
     parser.add_argument("--dataset", type=str, default="docred", help="dataset type")
 
@@ -120,8 +142,16 @@ def arg_pre_docunet():
     return args
 
 
-def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="dataset/docred/dev_keys_new.json", limit=False):
-    with open(dataset/ig_pkl_path, "rb") as dig:
+def enp_topk(
+    args,
+    model,
+    model_type,
+    tokenizer,
+    ig_pkl_path,
+    file_in="dataset/docred/dev_keys_new.json",
+    limit=False,
+):
+    with open(ig_pkl_path, "rb") as dig:
         dev_keys_ig = pickle.load(dig)
     print(len(dev_keys_ig))
     # for enp_topk in trange(1,101):
@@ -169,7 +199,9 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
                 for i_t, token in enumerate(sent):
                     tokens_wordpiece = tokenizer.tokenize(token)
                     if (i_s, i_t) in entity_start:
-                        tokens_wordpiece = ["*"] + tokens_wordpiece  # add * around entity
+                        tokens_wordpiece = [
+                            "*"
+                        ] + tokens_wordpiece  # add * around entity
                     if (i_s, i_t) in entity_end:
                         tokens_wordpiece = tokens_wordpiece + ["*"]
                     new_map[i_t] = len(sents)
@@ -226,7 +258,9 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
                 ht_entity_pos = [[], []]
                 for m in entity_pos[h]:
                     en_inds.extend(list(range(m[0], m[1])))  # IG topk avoid en
-                    ht_entity_pos[0].append((len(ht_sents), len(ht_sents) + m[1] - m[0]))
+                    ht_entity_pos[0].append(
+                        (len(ht_sents), len(ht_sents) + m[1] - m[0])
+                    )
                     ht_sents.extend(sents[m[0] : m[1]])
                 for m in entity_pos[t]:
                     en_inds.extend(list(range(m[0], m[1])))
@@ -238,14 +272,18 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
                     ]  # remove [CLS] and [SEP]
                     # IG topk context tokens (1.sum of all rel IG. vs  2.fetch union of 4 rels)
                     ht_igs[:, en_inds] = MASK_VAL
-                    aind = np.argpartition(ht_igs.sum(0), -enp_topk, axis=-1)[-enp_topk:]
+                    aind = np.argpartition(ht_igs.sum(0), -enp_topk, axis=-1)[
+                        -enp_topk:
+                    ]
                     aind = aind - 1
                     aind = aind.tolist()
                     aind.sort()
                     ht_sents.extend([sents[idx] for idx in aind])
                 for m in entity_pos[t]:
                     en_inds.extend(list(range(m[0], m[1])))  # IG topk avoid en
-                    ht_entity_pos[1].append((len(ht_sents), len(ht_sents) + m[1] - m[0]))
+                    ht_entity_pos[1].append(
+                        (len(ht_sents), len(ht_sents) + m[1] - m[0])
+                    )
                     ht_sents.extend(sents[m[0] : m[1]])
 
                 ht_sents = ht_sents[: MAX_SEQ_LENGTH - 2]
@@ -265,12 +303,24 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
                 for l in train_triple[(h, t)]:
                     label = {"h": 0, "t": 1, "r": l["rel"], "evidence": l["evidence"]}
                     labels.append(label)
-                dev_key_enp_json.append({"vertexSet": [entities[h], entities[t]], "labels": labels, "title": ht_title})
+                dev_key_enp_json.append(
+                    {
+                        "vertexSet": [entities[h], entities[t]],
+                        "labels": labels,
+                        "title": ht_title,
+                    }
+                )
                 hti += 1
                 enp_num += 1
 
-        pickle.dump(enp_features, open(f"dataset/docred/enp_topk/enp_topk{enp_topk}@{model_type}.pkl", "wb"))
-        json.dump(dev_key_enp_json, open(f"dataset/docred/enp_topk/dev_key_enp_topk{enp_topk}.json", "w"))
+        pickle.dump(
+            enp_features,
+            open(f"dataset/docred/enp_topk/enp_topk{enp_topk}@{model_type}.pkl", "wb"),
+        )
+        json.dump(
+            dev_key_enp_json,
+            open(f"dataset/docred/enp_topk/dev_key_enp_topk{enp_topk}.json", "w"),
+        )
 
     # start evaluation for entity pair and topk tokens
     enp_stat = []
@@ -278,7 +328,9 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
 
     for enp_topk in trange(0, 101):
         args.dev_file = f"enp_topk/dev_key_enp_topk{enp_topk}.json"
-        enp_features = pickle.load(open(f"dataset/docred/enp_topk/enp_topk{enp_topk}.pkl", "rb"))
+        enp_features = pickle.load(
+            open(f"dataset/docred/enp_topk/enp_topk{enp_topk}.pkl", "rb")
+        )
         bf, outp = evaluate(args, model, enp_features, tag=f"dev_enp_topk{enp_topk}")
         enp_stat.append(list(outp.values())[0])
     print(len(enp_stat))
@@ -299,7 +351,9 @@ def enp_topk(args, model, model_type, tokenizer, dataset/ig_pkl_path, file_in="d
     plt.ylabel("F1", label_font)
     plt.xticks(xaixs, fontsize=fs, rotation=20)
     plt.yticks(fontsize=fs)
-    plt.plot(range(len(enp_stat)), enp_stat, label="ATLOP_roberta", color="darkgoldenrod")
+    plt.plot(
+        range(len(enp_stat)), enp_stat, label="ATLOP_roberta", color="darkgoldenrod"
+    )
     plt.legend(fontsize=35)
     plt.savefig(f"enp_topk@{model_type}.png")
 
@@ -325,7 +379,20 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
         data = json.load(fh)
     if limit:
         data = data[:1]
-    entity_type = ["-", "ORG", "-", "LOC", "-", "TIME", "-", "PER", "-", "MISC", "-", "NUM"]  # specific for DocuNet
+    entity_type = [
+        "-",
+        "ORG",
+        "-",
+        "LOC",
+        "-",
+        "TIME",
+        "-",
+        "PER",
+        "-",
+        "MISC",
+        "-",
+        "NUM",
+    ]  # specific for DocuNet
     for sample in tqdm(data, desc="Example"):
         sents = []
         sent_map = []
@@ -380,9 +447,13 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
                 evidence = label["evidence"] if "evidence" in label else []
                 r = int(docred_rel2id[label["r"]])
                 if (label["h"], label["t"]) not in train_triple:
-                    train_triple[(label["h"], label["t"])] = [{"relation": r, "evidence": evidence}]
+                    train_triple[(label["h"], label["t"])] = [
+                        {"relation": r, "evidence": evidence}
+                    ]
                 else:
-                    train_triple[(label["h"], label["t"])].append({"relation": r, "evidence": evidence})
+                    train_triple[(label["h"], label["t"])].append(
+                        {"relation": r, "evidence": evidence}
+                    )
         entity_pos = []
         for e in entities:
             entity_pos.append([])
@@ -443,7 +514,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
                     en_mask_sents[i] = MASK_TOKEN
         en_mask_sents = en_mask_sents[: MAX_SEQ_LENGTH - 2]
         en_mask_input_ids = tokenizer.convert_tokens_to_ids(en_mask_sents)
-        en_mask_input_ids = tokenizer.build_inputs_with_special_tokens(en_mask_input_ids)
+        en_mask_input_ids = tokenizer.build_inputs_with_special_tokens(
+            en_mask_input_ids
+        )
         en_mask_feature = {
             "input_ids": en_mask_input_ids,
             "entity_pos": entity_pos,
@@ -468,7 +541,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
             new_en = shuf_ens[m[2]]
             en_shuf_sents.extend(new_en)
             shuf_index_now = m[1]
-            shuf_mentions.append((len(en_shuf_sents), len(en_shuf_sents) + len(new_en), m[2], m[3]))
+            shuf_mentions.append(
+                (len(en_shuf_sents), len(en_shuf_sents) + len(new_en), m[2], m[3])
+            )
         en_shuf_sents.extend(sents[shuf_index_now:])
         shuf_mentions.sort(key=lambda x: x[2])
         shuf_mens = [
@@ -479,7 +554,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
 
         en_shuf_sents = en_shuf_sents[: MAX_SEQ_LENGTH - 2]
         en_shuf_input_ids = tokenizer.convert_tokens_to_ids(en_shuf_sents)
-        en_shuf_input_ids = tokenizer.build_inputs_with_special_tokens(en_shuf_input_ids)
+        en_shuf_input_ids = tokenizer.build_inputs_with_special_tokens(
+            en_shuf_input_ids
+        )
         en_shuf_feature = {
             "input_ids": en_shuf_input_ids,
             "entity_pos": shuf_entity_pos,
@@ -494,7 +571,7 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
         repl_index_now = 0
         repl_mentions = []
         for m in all_mentions:
-            en_repl_sents.extend(sents[repl_index_now: m[0]])
+            en_repl_sents.extend(sents[repl_index_now : m[0]])
             new_en = repl_ens[m[2] * 10]  # fetch every 10 entities
             en_wordpiece = tokenizer.tokenize(new_en)
             new_en = (
@@ -502,7 +579,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
             )  # <unk> is only for roberta (special token)
             en_repl_sents.extend(new_en)
             repl_index_now = m[1]
-            repl_mentions.append((len(en_repl_sents), len(en_repl_sents) + len(new_en), m[2], m[3]))
+            repl_mentions.append(
+                (len(en_repl_sents), len(en_repl_sents) + len(new_en), m[2], m[3])
+            )
         en_repl_sents.extend(sents[repl_index_now:])
         repl_mentions.sort(key=lambda x: x[2])
         repl_mens = [
@@ -513,7 +592,9 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
 
         en_repl_sents = en_repl_sents[: MAX_SEQ_LENGTH - 2]
         en_repl_input_ids = tokenizer.convert_tokens_to_ids(en_repl_sents)
-        en_repl_input_ids = tokenizer.build_inputs_with_special_tokens(en_repl_input_ids)
+        en_repl_input_ids = tokenizer.build_inputs_with_special_tokens(
+            en_repl_input_ids
+        )
         en_repl_feature = {
             "input_ids": en_repl_input_ids,
             "entity_pos": repl_entity_pos,
@@ -526,15 +607,23 @@ def build_entity_attack_dataset(model_type, tokenizer, limit=False):
 
     attack_dir = "dataset/attack_pkl/"
     pickle.dump(ori_features, open(attack_dir + model_type + "@ori_dev.pkl", "wb"))
-    pickle.dump(en_mask_features, open(attack_dir + model_type + "@en_mask_dev.pkl", "wb"))
-    pickle.dump(en_shuf_features, open(attack_dir + model_type + "@en_shuf_dev.pkl", "wb"))
-    pickle.dump(en_repl_features, open(attack_dir + model_type + "@en_repl_dev.pkl", "wb"))
+    pickle.dump(
+        en_mask_features, open(attack_dir + model_type + "@en_mask_dev.pkl", "wb")
+    )
+    pickle.dump(
+        en_shuf_features, open(attack_dir + model_type + "@en_shuf_dev.pkl", "wb")
+    )
+    pickle.dump(
+        en_repl_features, open(attack_dir + model_type + "@en_repl_dev.pkl", "wb")
+    )
     print("# of documents {}.".format(i_line))
     print("# of original num {}.".format(ori_num))
     print("# of shuffle num {}.".format(len(en_shuf_features)))
 
 
-def entity_attack(args, model, model_type, tokenizer, file_in="dataset/docred/dev_wo_overlap.json"):
+def entity_attack(
+    args, model, model_type, tokenizer, file_in="dataset/docred/dev_wo_overlap.json"
+):
     attack_dir = "dataset/attack_pkl/"
     # json.dump(ori_features, open(attack_dir + model_type + '@ori_keyword_dev.pkl', 'wb'))
     tag = file_in.split("/")[-1].split(".")[0]
@@ -606,7 +695,9 @@ def attack_ratio(ori_key_res, key_res, ori_features):
     return r_nor_ratio, nor_r_ratio, rel_arel_ratio, rel_srel_ratio
 
 
-def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.json", limit=False):
+def keyword_attack(
+    args, model, tokenizer, file_in="dataset/docred/dev_keys_new.json", limit=False
+):
     # create [MASK] for specific relation
     i_line, pos_samples = 0, 0
     ori_features, mask_features, anto_features, syno_features = [], [], [], []
@@ -617,7 +708,20 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
     kdict = pickle.load(open("dataset/docred/keywords_dict.pkl", "rb"))
     if limit:
         data = data[:10]
-    entity_type = ["-", "ORG", "-", "LOC", "-", "TIME", "-", "PER", "-", "MISC", "-", "NUM"]
+    entity_type = [
+        "-",
+        "ORG",
+        "-",
+        "LOC",
+        "-",
+        "TIME",
+        "-",
+        "PER",
+        "-",
+        "MISC",
+        "-",
+        "NUM",
+    ]
     for sample in tqdm(data, desc="Example"):
         sents = []
         sent_map = []
@@ -668,9 +772,13 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
                 evidence = label["evidence"] if "evidence" in label else []
                 r = int(docred_rel2id[label["r"]])
                 if (label["h"], label["t"]) not in train_triple:
-                    train_triple[(label["h"], label["t"])] = [{"relation": r, "evidence": evidence}]
+                    train_triple[(label["h"], label["t"])] = [
+                        {"relation": r, "evidence": evidence}
+                    ]
                 else:
-                    train_triple[(label["h"], label["t"])].append({"relation": r, "evidence": evidence})
+                    train_triple[(label["h"], label["t"])].append(
+                        {"relation": r, "evidence": evidence}
+                    )
         entity_pos = []
         for e in entities:
             entity_pos.append([])
@@ -809,10 +917,18 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
                 anto_sents.extend(sents[anto_index_now:])
                 anto_sents = anto_sents[: MAX_SEQ_LENGTH - 2]
                 anto_input_ids = tokenizer.convert_tokens_to_ids(anto_sents)
-                anto_input_ids = tokenizer.build_inputs_with_special_tokens(anto_input_ids)
+                anto_input_ids = tokenizer.build_inputs_with_special_tokens(
+                    anto_input_ids
+                )
                 anto_entity_pos = [
-                    [(s + anto_edit_len_list[s], e + anto_edit_len_list[e]) for s, e in entity_pos[h]],
-                    [(s + anto_edit_len_list[s], e + anto_edit_len_list[e]) for s, e in entity_pos[t]],
+                    [
+                        (s + anto_edit_len_list[s], e + anto_edit_len_list[e])
+                        for s, e in entity_pos[h]
+                    ],
+                    [
+                        (s + anto_edit_len_list[s], e + anto_edit_len_list[e])
+                        for s, e in entity_pos[t]
+                    ],
                 ]
                 anto_hts = [[0, 1]]
                 anto_relations = relations[hts.index([h, t])]
@@ -831,10 +947,18 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
                 syno_sents.extend(sents[syno_index_now:])
                 syno_sents = syno_sents[: MAX_SEQ_LENGTH - 2]
                 syno_input_ids = tokenizer.convert_tokens_to_ids(syno_sents)
-                syno_input_ids = tokenizer.build_inputs_with_special_tokens(syno_input_ids)
+                syno_input_ids = tokenizer.build_inputs_with_special_tokens(
+                    syno_input_ids
+                )
                 syno_entity_pos = [
-                    [(s + syno_edit_len_list[s], e + syno_edit_len_list[e]) for s, e in entity_pos[h]],
-                    [(s + syno_edit_len_list[s], e + syno_edit_len_list[e]) for s, e in entity_pos[t]],
+                    [
+                        (s + syno_edit_len_list[s], e + syno_edit_len_list[e])
+                        for s, e in entity_pos[h]
+                    ],
+                    [
+                        (s + syno_edit_len_list[s], e + syno_edit_len_list[e])
+                        for s, e in entity_pos[t]
+                    ],
                 ]
                 syno_hts = [[0, 1]]
                 syno_relations = relations[hts.index([h, t])]
@@ -857,10 +981,19 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
 
     # Attack ratio newer version (only consider keywords that will changed)
     print("\nstart calculating attack ratio...")
-    fs = [ori_features, mask_features, ori_anto_features, anto_features, ori_syno_features, syno_features]
+    fs = [
+        ori_features,
+        mask_features,
+        ori_anto_features,
+        anto_features,
+        ori_syno_features,
+        syno_features,
+    ]
     key_res_list = []
     for f in fs:
-        key_res, all_rnum, pos_rnum, no_rnum, true_rnum, wrong_rnum = metric_keyword(args, model, f)
+        key_res, all_rnum, pos_rnum, no_rnum, true_rnum, wrong_rnum = metric_keyword(
+            args, model, f
+        )
         key_res_list.append(key_res)
         print(all_rnum, pos_rnum, no_rnum, true_rnum, wrong_rnum)
 
@@ -869,5 +1002,8 @@ def keyword_attack(args, model, tokenizer, file_in="dataset/docred/dev_keys_new.
     for i in range(0, len(fs), 2):
         print(
             "& %s & %.8f & %.8f & %.8f & %.8f \\\\"
-            % ((fea_strs[i // 2],) + attack_ratio(key_res_list[i], key_res_list[i + 1], fs[i]))
+            % (
+                (fea_strs[i // 2],)
+                + attack_ratio(key_res_list[i], key_res_list[i + 1], fs[i])
+            )
         )  # output as latex table format
